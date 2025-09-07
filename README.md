@@ -7,6 +7,7 @@ This repository contains Terraform configurations for deploying AWS infrastructu
 ```text
 ├── 01-foundation/     # VPC, subnets, networking infrastructure
 ├── 02-compute/        # EC2 instances, load balancers, security groups
+├── 03-EKS/           # EKS cluster and node groups
 └── backup/           # Backup configurations
 ```
 
@@ -39,23 +40,39 @@ terraform plan
 terraform apply
 ```
 
+### 3. EKS Layer
+
+Deploy the Kubernetes cluster:
+
+```bash
+cd 03-EKS
+terraform init
+terraform plan
+terraform apply
+```
+
 ## Features
 
 - **Foundation Layer**: Creates VPC, public/private subnets, internet gateway, NAT gateway
 - **Compute Layer**: Deploys EC2 instances, application load balancer, security groups
+- **EKS Layer**: Managed Kubernetes cluster with worker nodes and auto-scaling
 - **Remote State**: Uses S3 backend with DynamoDB locking for state management
-- **Layer Dependencies**: Compute layer reads foundation outputs via remote state
+- **Layer Dependencies**: Each layer reads previous layer outputs via remote state
 
 ## Clean Up
 
 To destroy resources (reverse order):
 
 ```bash
-# Destroy compute layer first
+# Destroy EKS layer first
+cd 03-EKS
+terraform destroy
+
+# Then destroy compute layer
 cd 02-compute
 terraform destroy
 
-# Then destroy foundation
+# Finally destroy foundation
 cd 01-foundation
 terraform destroy
 ```
