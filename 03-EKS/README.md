@@ -97,7 +97,7 @@ This module consumes the following from the VPC layer:
 3. **Configure kubectl**:
    ```bash
    # Use the exact command from terraform output
-   aws eks update-kubeconfig --region us-east-1 --name ms-platform-eks
+   aws eks update-kubeconfig --region us-east-1 --name guru-platform-eks
    
    # Verify connection
    kubectl get nodes

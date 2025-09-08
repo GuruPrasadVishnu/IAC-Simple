@@ -1,78 +1,79 @@
-# Infrastructure as Code
+# EKS Infrastructure with Autoscaling
 
-This repository contains Terraform configurations for deploying AWS infrastructure in a layered approach.
+A Terraform-based AWS EKS infrastructure with horizontal pod autoscaling and cluster autoscaling capabilities.
 
-## Project Structure
+## Architecture
 
-```text
-├── 01-foundation/     # VPC, subnets, networking infrastructure
-├── 02-compute/        # EC2 instances, load balancers, security groups
-├── 03-EKS/           # EKS cluster and node groups
-└── backup/           # Backup configurations
+```
+Internet → ALB (Public Subnets) → EKS Cluster (Private Subnets)
 ```
 
-## Prerequisites
+- **Foundation Layer**: VPC, subnets, NAT gateway
+- **EKS Layer**: Kubernetes cluster with managed node groups
+- **Autoscaler Layer**: Cluster autoscaler, HPA, metrics server, ALB integration
 
-- AWS CLI configured with appropriate credentials
-- Terraform installed (version ~> 4.0)
+## Quick Start
 
-## Deployment
+1. **Deploy Foundation**
+   ```bash
+   cd 01-foundation
+   terraform init
+   terraform apply
+   ```
 
-### 1. Foundation Layer
+2. **Deploy EKS**
+   ```bash
+   cd 03-EKS
+   terraform init
+   terraform apply
+   ```
 
-Deploy the networking foundation first:
+3. **Deploy Autoscaling**
+   ```bash
+   cd 04-EKS-Autoscaler
+   terraform init
+   terraform apply
+   ```
+
+4. **Configure kubectl**
+   ```bash
+   aws eks update-kubeconfig --region us-east-1 --name guru-eks-cluster
+   ```
+
+## Demo Application
+
+Access the nginx demo app via the Application Load Balancer:
+- URL will be displayed in Terraform outputs after deployment
+- Example: `http://k8s-demoapp-xxxxx.us-east-1.elb.amazonaws.com`
+
+## Testing Autoscaling
+
+- **Horizontal Pod Autoscaler**: Scales pods based on CPU/memory usage
+- **Cluster Autoscaler**: Adds/removes nodes based on pod scheduling needs
 
 ```bash
-cd 01-foundation
-terraform init
-terraform plan
-terraform apply
+# Check HPA status
+kubectl get hpa -n demo
+
+# Check cluster autoscaler logs
+kubectl logs -n kube-system deployment/cluster-autoscaler
+
+# Monitor resources
+kubectl top pods -n demo
 ```
 
-### 2. Compute Layer
+## Components
 
-Deploy the compute resources:
+- **Metrics Server**: Provides resource metrics for HPA
+- **Cluster Autoscaler**: Manages node scaling
+- **AWS Load Balancer Controller**: Creates and manages ALBs
+- **Demo App**: Simple nginx deployment with autoscaling configured
 
-```bash
-cd 02-compute
-terraform init
-terraform plan
-terraform apply
-```
-
-### 3. EKS Layer
-
-Deploy the Kubernetes cluster:
+## Cleanup
 
 ```bash
-cd 03-EKS
-terraform init
-terraform plan
-terraform apply
-```
-
-## Features
-
-- **Foundation Layer**: Creates VPC, public/private subnets, internet gateway, NAT gateway
-- **Compute Layer**: Deploys EC2 instances, application load balancer, security groups
-- **EKS Layer**: Managed Kubernetes cluster with worker nodes and auto-scaling
-- **Remote State**: Uses S3 backend with DynamoDB locking for state management
-- **Layer Dependencies**: Each layer reads previous layer outputs via remote state
-
-## Clean Up
-
-To destroy resources (reverse order):
-
-```bash
-# Destroy EKS layer first
-cd 03-EKS
-terraform destroy
-
-# Then destroy compute layer
-cd 02-compute
-terraform destroy
-
-# Finally destroy foundation
-cd 01-foundation
-terraform destroy
+# Destroy in reverse order
+cd 04-EKS-Autoscaler && terraform destroy
+cd ../03-EKS && terraform destroy  
+cd ../01-foundation && terraform destroy
 ```

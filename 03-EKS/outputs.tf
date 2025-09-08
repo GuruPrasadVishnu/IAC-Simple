@@ -49,3 +49,14 @@ output "cluster_certificate_authority_data" {
   description = "Base64 encoded certificate data required to communicate with the cluster"
   value       = aws_eks_cluster.main.certificate_authority[0].data
 }
+
+# OIDC Identity Provider outputs
+output "cluster_oidc_issuer_url" {
+  description = "The URL on the EKS cluster for the OpenID Connect identity provider"
+  value       = aws_eks_cluster.main.identity[0].oidc[0].issuer
+}
+
+output "cluster_oidc_issuer_arn" {
+  description = "The ARN of the OIDC Identity Provider for the cluster"
+  value       = aws_iam_openid_connect_provider.eks.arn
+}
