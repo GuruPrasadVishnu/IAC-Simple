@@ -22,6 +22,14 @@ Follow this sequence (each folder has detailed README):
 - AWS CLI configured with credentials
 - Terraform installed
 - kubectl (for EKS modules)
+- ## Create S3 Bucket
+    - Go to Services -> S3 -> Create Bucket
+    - Bucket name: guru-terraform-state-bucket
+    - Region: US-East (N.Virginia)
+    - Bucket settings for Block Public Access: leave to defaults
+    - Bucket Versioning: Enable
+    - Rest all leave to defaults
+    - Click on Create Bucket
 
 ## Quick Start
 
