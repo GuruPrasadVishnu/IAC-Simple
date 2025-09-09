@@ -1,21 +1,23 @@
-# Compute - Simple Web Server
+# Compute - Web Server Infrastructure
 
-A basic web server setup that's actually secure. EC2 instance in a private subnet with a load balancer in front.
+Secure web server deployment using EC2 instances in private subnets with Application Load Balancer for public access.
 
-## What it does
+## Architecture
 
-- Creates an Application Load Balancer (ALB) in public subnets
-- Launches an EC2 instance in a private subnet (no direct internet access)
-- Sets up security groups (firewall rules)
-- Serves a simple webpage about being in a private subnet
+- Application Load Balancer in public subnets
+- EC2 instance in private subnet (no public IP)
+- Security groups for controlled access
+- Simple web application serving static content
 
-## Why private subnet?
+## Security Benefits
 
-Security! The web server can't be directly attacked from the internet. All traffic goes through the load balancer first.
+The web server cannot be directly accessed from internet. All traffic must go through the load balancer, providing additional security layer.
 
-## Deploy
+## Prerequisites
 
-Make sure you've deployed `01-foundation` first!
+- 01-foundation module must be deployed first
+
+## Deployment
 
 ```bash
 terraform init
@@ -23,30 +25,30 @@ terraform plan
 terraform apply
 ```
 
-## Access your site
+## Access Application
 
-After deployment, you'll get a load balancer URL:
+After deployment, get the load balancer URL:
 
 ```bash
 terraform output load_balancer_url
 ```
 
-Visit that URL in your browser. Should see a simple page saying it's running in a private subnet.
+Open this URL in web browser to view the application.
 
-## Validation
+## Validation Steps
 
-- Test the URL - webpage should load
-- Check AWS console - EC2 instance should have NO public IP
-- Load balancer should be in public subnets
-- Try curling the URL from command line
+- Verify webpage loads correctly
+- Check EC2 instance has no public IP in AWS Console
+- Confirm load balancer is in public subnets
+- Test application accessibility from internet
 
-## Architecture
+## Architecture Flow
 
 ```
-Internet → ALB (public) → EC2 (private) → NAT Gateway → Internet (for updates)
+Internet → ALB (public subnets) → EC2 (private subnet) → NAT Gateway → Internet
 ```
 
-## Clean up
+## Clean Up
 
 ```bash
 terraform destroy

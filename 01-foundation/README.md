@@ -1,17 +1,17 @@
-# Foundation - Network Setup
+# Foundation - Network Infrastructure
 
-This is where it all starts. Sets up the basic AWS networking that everything else depends on.
+This module creates the base AWS networking infrastructure required for all other modules.
 
-## What it creates
+## Resources Created
 
-- VPC (our own private cloud space)
-- Public subnets (for load balancers and stuff that needs internet)
-- Private subnets (for secure servers that shouldn't be directly accessible)
-- Internet Gateway (how we get to the internet)
-- NAT Gateway (how private servers get internet access safely)
-- Route tables (traffic rules)
+- VPC with DNS support and hostnames enabled
+- Public subnets for load balancers and NAT gateway
+- Private subnets for secure server deployment
+- Internet Gateway for public internet access
+- NAT Gateway for private subnet internet access
+- Route tables with appropriate routing rules
 
-## Deploy
+## Deployment
 
 ```bash
 terraform init
@@ -19,22 +19,25 @@ terraform plan
 terraform apply
 ```
 
-## What you get
+## Outputs
 
-After running this, you'll have a solid network foundation that follows AWS best practices. Private subnets for security, public subnets for load balancers, and a NAT gateway so your private servers can still download updates.
+This module provides outputs consumed by other modules:
+- VPC ID
+- Public subnet IDs
+- Private subnet IDs
 
 ## Validation
 
-Check the AWS console - you should see:
-- 1 VPC created
-- 2 public subnets + 2 private subnets
-- 1 NAT Gateway (costs money, just FYI)
-- Route tables properly configured
+Verify in AWS Console:
+- VPC created with correct CIDR block
+- Subnets created in multiple availability zones
+- NAT Gateway deployed (note: this incurs costs)
+- Route tables configured properly
 
-## Clean up
+## Clean Up
 
 ```bash
 terraform destroy
 ```
 
-Note: This will break everything else that depends on it, so destroy other modules first.
+Note: Destroy dependent modules first before destroying this foundation.
