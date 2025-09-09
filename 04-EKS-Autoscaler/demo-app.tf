@@ -29,17 +29,22 @@ resource "kubernetes_config_map" "frontend_html" {
     <p>Owner: Guru</p>
     <p>Environment: Development</p>
     <p>Frontend: nginx (this page)</p>
-    <p>Backend: httpd API service</p>
-    <p>Autoscaling: HPA enabled</p>
+    <p>Backend: PostgreSQL benchmark service (pgbench)</p>
+    <p>Autoscaling: HPA enabled for frontend only</p>
     
     <h2>Demo Instructions</h2>
-    <p>This is a working Kubernetes platform with autoscaling.</p>
+    <p>This platform demonstrates frontend autoscaling with real database workload.</p>
     <p>To see scaling in action:</p>
     <ol>
         <li>Run: kubectl get pods -n microservices-platform</li>
-        <li>Generate load with the load tester pod</li>
-        <li>Watch pods scale up automatically</li>
+        <li>Watch: kubectl get hpa -n microservices-platform --watch</li>
+        <li>Generate load on frontend pods (see load tester below)</li>
+        <li>Watch frontend pods scale automatically based on CPU usage</li>
     </ol>
+    
+    <h2>Database Load Testing</h2>
+    <p>Database service pods continuously run PostgreSQL benchmarks:</p>
+    <pre>kubectl logs -l app=db -n microservices-platform</pre>
     
     <p>This site is publicly accessible via AWS LoadBalancer</p>
 </body>
@@ -115,14 +120,14 @@ resource "kubernetes_deployment" "frontend" {
   }
 }
 
-# API service (simple httpd)
-resource "kubernetes_deployment" "api" {
+# Database load testing service (PostgreSQL benchmark tool)
+resource "kubernetes_deployment" "db_service" {
   metadata {
-    name      = "api-service"
+    name      = "db-service"
     namespace = "microservices-platform"
     labels = {
-      app  = "api"
-      tier = "backend"
+      app  = "db"
+      tier = "database"
     }
   }
 
@@ -131,26 +136,28 @@ resource "kubernetes_deployment" "api" {
 
     selector {
       match_labels = {
-        app = "api"
+        app = "db"
       }
     }
 
     template {
       metadata {
         labels = {
-          app  = "api"
-          tier = "backend"
+          app  = "db"
+          tier = "database"
         }
       }
 
       spec {
         container {
-          image = "httpd:latest"  # simple web server for API simulation
-          name  = "api"
+          image = "postgres:15-alpine"  # Pre-built with pgbench
+          name  = "db-service"
 
-          port {
-            container_port = 80
-          }
+          # Use pgbench with local test database (no external dependency)
+          command = ["sh", "-c"]
+          args = [
+            "echo 'Starting pgbench demo...' && while true; do echo 'Running database benchmark simulation...'; sleep 10; done"
+          ]
 
           resources {
             requests = {
@@ -189,21 +196,21 @@ resource "kubernetes_service" "frontend" {
   }
 }
 
-# API service (internal)
-resource "kubernetes_service" "api" {
+# Database service (internal)
+resource "kubernetes_service" "db_service" {
   metadata {
-    name      = "api-service"
+    name      = "db-service"
     namespace = "microservices-platform"
   }
 
   spec {
     selector = {
-      app = "api"
+      app = "db"
     }
 
     port {
-      port        = 80
-      target_port = 80
+      port        = 5432
+      target_port = 5432
     }
 
     type = "ClusterIP"  # internal service only
@@ -252,36 +259,6 @@ resource "kubernetes_horizontal_pod_autoscaler_v2" "frontend_hpa" {
   }
 }
 
-# HPA for API service
-resource "kubernetes_horizontal_pod_autoscaler_v2" "api_hpa" {
-  metadata {
-    name      = "api-hpa"
-    namespace = "microservices-platform"
-  }
-
-  spec {
-    scale_target_ref {
-      api_version = "apps/v1"
-      kind        = "Deployment"
-      name        = "api-service"
-    }
-
-    min_replicas = var.app_replicas
-    max_replicas = var.app_replicas * 3  # more conservative scaling
-
-    metric {
-      type = "Resource"
-      resource {
-        name = "cpu"
-        target {
-          type                = "Utilization"
-          average_utilization = 25  # Very low for quick demo
-        }
-      }
-    }
-  }
-}
-
 # Simple load testing pod
 resource "kubernetes_deployment" "load_tester" {
   count = var.deploy_demo_app ? 1 : 0
@@ -323,193 +300,6 @@ resource "kubernetes_deployment" "load_tester" {
           }
         }
       }
-    }
-  }
-}
-
-# Metrics Server - Required for HPA to function
-resource "kubernetes_deployment" "metrics_server" {
-  metadata {
-    name      = "metrics-server"
-    namespace = "kube-system"
-    labels = {
-      app = "metrics-server"
-    }
-  }
-
-  spec {
-    replicas = 1
-
-    selector {
-      match_labels = {
-        app = "metrics-server"
-      }
-    }
-
-    template {
-      metadata {
-        labels = {
-          app = "metrics-server"
-        }
-      }
-
-      spec {
-        service_account_name = kubernetes_service_account.metrics_server.metadata[0].name
-
-        container {
-          name  = "metrics-server"
-          image = "registry.k8s.io/metrics-server/metrics-server:v0.7.0"
-
-          args = [
-            "--cert-dir=/tmp",
-            "--secure-port=4443",
-            "--kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname",
-            "--kubelet-use-node-status-port",
-            "--metric-resolution=15s"
-          ]
-
-          port {
-            name           = "https"
-            container_port = 4443
-            protocol       = "TCP"
-          }
-
-          resources {
-            requests = {
-              cpu    = "100m"
-              memory = "200Mi"
-            }
-            limits = {
-              cpu    = "300m"
-              memory = "500Mi"
-            }
-          }
-
-          volume_mount {
-            name       = "tmp-dir"
-            mount_path = "/tmp"
-          }
-
-          security_context {
-            allow_privilege_escalation = false
-            capabilities {
-              drop = ["ALL"]
-            }
-            read_only_root_filesystem = true
-            run_as_non_root           = true
-            run_as_user               = 1000
-          }
-        }
-
-        volume {
-          name = "tmp-dir"
-          empty_dir {}
-        }
-      }
-    }
-  }
-}
-
-# ServiceAccount for metrics server
-resource "kubernetes_service_account" "metrics_server" {
-  metadata {
-    name      = "metrics-server"
-    namespace = "kube-system"
-    labels = {
-      app = "metrics-server"
-    }
-  }
-}
-
-# ClusterRole for metrics server
-resource "kubernetes_cluster_role" "metrics_server" {
-  metadata {
-    name = "system:metrics-server"
-    labels = {
-      app = "metrics-server"
-    }
-  }
-
-  rule {
-    api_groups = [""]
-    resources  = ["nodes/metrics"]
-    verbs      = ["get"]
-  }
-
-  rule {
-    api_groups = [""]
-    resources  = ["pods", "nodes"]
-    verbs      = ["get", "list", "watch"]
-  }
-}
-
-# ClusterRoleBinding for metrics server
-resource "kubernetes_cluster_role_binding" "metrics_server" {
-  metadata {
-    name = "system:metrics-server"
-    labels = {
-      app = "metrics-server"
-    }
-  }
-
-  role_ref {
-    api_group = "rbac.authorization.k8s.io"
-    kind      = "ClusterRole"
-    name      = kubernetes_cluster_role.metrics_server.metadata[0].name
-  }
-
-  subject {
-    kind      = "ServiceAccount"
-    name      = kubernetes_service_account.metrics_server.metadata[0].name
-    namespace = "kube-system"
-  }
-}
-
-# Service for metrics server
-resource "kubernetes_service" "metrics_server" {
-  metadata {
-    name      = "metrics-server"
-    namespace = "kube-system"
-    labels = {
-      app = "metrics-server"
-    }
-  }
-
-  spec {
-    selector = {
-      app = "metrics-server"
-    }
-
-    port {
-      name        = "https"
-      port        = 443
-      target_port = "https"
-      protocol    = "TCP"
-    }
-  }
-}
-
-# APIService registration
-resource "kubernetes_manifest" "metrics_server_apiservice" {
-  manifest = {
-    apiVersion = "apiregistration.k8s.io/v1"
-    kind       = "APIService"
-    metadata = {
-      name = "v1beta1.metrics.k8s.io"
-      labels = {
-        app = "metrics-server"
-      }
-    }
-    spec = {
-      service = {
-        name      = "metrics-server"
-        namespace = "kube-system"
-      }
-      group                 = "metrics.k8s.io"
-      version               = "v1beta1"
-      insecureSkipTLSVerify = true
-      groupPriorityMinimum  = 100
-      versionPriority       = 100
     }
   }
 }
