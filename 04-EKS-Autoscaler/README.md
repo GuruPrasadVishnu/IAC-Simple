@@ -1,171 +1,93 @@
-# EKS Autoscaler Demo
+# EKS Autoscaler - The Cool Stuff!
 
-This layer adds **Cluster Autoscaler** and **Horizontal Pod Autoscaler (HPA)** to your existing EKS cluster for automatic scaling capabilities.
+This is where Kubernetes shows off. Deploy apps that automatically scale up when busy and scale down when quiet. 
 
-## What This Demo Shows
+## What it does
 
-### 1. **Metrics Server**
-
-- Collects resource metrics from kubelets
-- Required for HPA to function properly
-- Enables `kubectl top` commands
-- Provides CPU/memory metrics for scaling decisions
-
-### 2. **Cluster Autoscaler**
-
-- Automatically adds/removes worker nodes based on pod demand
-- Scales nodes up when pods can't be scheduled
-- Scales nodes down when they're underutilized
-- **Note**: Uses pod scheduling status, not metrics
-
-### 3. **Horizontal Pod Autoscaler (HPA)**
-
-- Automatically scales pod replicas based on CPU/memory usage
-- **Requires Metrics Server** to collect resource metrics
-- Monitors metrics and adjusts deployment replica count
-- Includes a demo NGINX application for testing
+- Deploys a simple demo website on Kubernetes
+- Sets up Horizontal Pod Autoscaler (HPA) - pods scale 2 to 10 based on CPU
+- Installs metrics server (required for autoscaling to work)
+- Creates a public LoadBalancer so you can access it
+- Very low CPU thresholds (20%) so you can see scaling in action quickly
 
 ## Prerequisites
 
-- Foundation layer deployed (`01-foundation`)
-- EKS cluster deployed (`03-EKS`)
-- `kubectl` configured to access your cluster
+- `01-foundation` deployed
+- `03-EKS` deployed and kubectl working
+- About 5 minutes of patience
 
-## Quick Deploy
+## Deploy
 
 ```bash
-# Navigate to autoscaler directory
-cd 04-EKS-Autoscaler
-
-# Initialize and deploy
 terraform init
-terraform plan
+terraform plan  
 terraform apply
 ```
 
-## Demo Steps
+## Test the autoscaling
 
-### 1. Check Initial State
-```bash
-# Check current nodes
-kubectl get nodes
+1. **Get the website URL:**
+   ```bash
+   kubectl get svc -n microservices-platform
+   # Look for the EXTERNAL-IP of the frontend service
+   ```
 
-# Verify metrics server is running
-kubectl get deployment metrics-server -n kube-system
+2. **Check current pod count:**
+   ```bash
+   kubectl get pods -n microservices-platform
+   kubectl get hpa -n microservices-platform
+   ```
 
-# Test metrics collection (should show CPU/Memory usage)
-kubectl top nodes
-kubectl top pods -n autoscaler-demo
+3. **Generate some load:**
+   ```bash
+   # Replace with your actual LoadBalancer URL
+   for i in {1..100}; do curl -s http://your-loadbalancer-url > /dev/null & done
+   ```
 
-# Check demo pods
-kubectl get pods -n autoscaler-demo
+4. **Watch the magic happen:**
+   ```bash
+   # Watch pods scale up
+   kubectl get pods -n microservices-platform --watch
+   
+   # In another terminal, watch HPA
+   kubectl get hpa -n microservices-platform --watch
+   ```
 
-# Check HPA status (should show "unknown" initially until metrics are collected)
-kubectl get hpa -n autoscaler-demo
-```
+You should see CPU go up and pods scale from 2 to 10!
 
-### 2. Test Horizontal Pod Autoscaler
-```bash
-# Generate CPU load (run in separate terminal)
-kubectl run -i --tty load-generator --rm --image=busybox --restart=Never -n autoscaler-demo -- /bin/sh -c "while sleep 0.01; do wget -q -O- http://demo-app-service; done"
+## What you learn
 
-# Watch HPA scale pods (in another terminal)
-kubectl get hpa -n autoscaler-demo --watch
+- How Kubernetes autoscaling works
+- Why you need a metrics server
+- How to set sensible CPU/memory thresholds
+- That autoscaling takes 2-3 minutes to kick in (not instant)
 
-# Watch pods scaling
-kubectl get pods -n autoscaler-demo --watch
-```
-
-### 3. Test Cluster Autoscaler
-```bash
-# Scale up demo app to trigger node scaling
-kubectl scale deployment demo-app --replicas=20 -n autoscaler-demo
-
-# Watch for new nodes being added
-kubectl get nodes --watch
-
-# Check cluster autoscaler logs
-kubectl logs -n kube-system -l app.kubernetes.io/name=cluster-autoscaler
-```
-
-### 4. Scale Down
-```bash
-# Stop load generator (Ctrl+C)
-
-# Scale down demo app
-kubectl scale deployment demo-app --replicas=2 -n autoscaler-demo
-
-# Watch HPA scale down pods
-kubectl get hpa -n autoscaler-demo --watch
-
-# Watch nodes scale down (takes ~10 minutes)
-kubectl get nodes --watch
-```
-
-## Key Components
-
-### Cluster Autoscaler
-- **Location**: `kube-system` namespace
-- **Chart**: Official Kubernetes autoscaler Helm chart
-- **IAM Role**: Attached via service account with IRSA
-- **Permissions**: Can modify Auto Scaling Groups
-
-### Demo Application
-- **Application**: NGINX web server
-- **Namespace**: `autoscaler-demo`
-- **Resources**: CPU/Memory requests and limits set
-- **HPA Target**: 70% CPU, 80% Memory
-- **Scaling**: 2-10 replicas
-
-## Architecture
-
-```
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   Foundation    │───▶│    EKS Cluster   │───▶│   Autoscaler    │
-│   (Networking)  │    │   (Kubernetes)   │    │   (Scaling)     │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
-```
-
-## Configuration
-
-All settings in `terraform.tfvars`:
-- `enable_cluster_autoscaler`: Enable/disable cluster autoscaler
-- `enable_hpa`: Enable/disable HPA demo
-- `cluster_autoscaler_version`: Helm chart version
-
-## Troubleshooting
-
-### Check Cluster Autoscaler
-```bash
-kubectl get pods -n kube-system -l app.kubernetes.io/name=cluster-autoscaler
-kubectl logs -n kube-system -l app.kubernetes.io/name=cluster-autoscaler
-```
-
-### Check HPA
-```bash
-kubectl describe hpa demo-app-hpa -n autoscaler-demo
-kubectl top pods -n autoscaler-demo
-```
-
-### Check Metrics Server
-```bash
-kubectl get deployment metrics-server -n kube-system
-kubectl logs -n kube-system -l k8s-app=metrics-server
-```
-
-## Clean Up
+## Clean up
 
 ```bash
 terraform destroy
 ```
+kubectl get svc -n microservices-platform frontend-service
+# Visit the EXTERNAL-IP in your browser
+```
 
-**Note**: This will remove autoscaler components but keep the EKS cluster and foundation infrastructure.
+**4. Test autoscaling - generate load:**
+```bash
+kubectl exec -it deploy/load-tester -n microservices-platform -- sh
 
-## Demo Script Summary
+# Inside the pod, run this to create CPU load:
+for i in $(seq 1 10); do (while true; do echo 'stress' | md5sum; done) & done
+```
 
-1. **Show current state** - nodes, pods, HPA
-2. **Generate load** - CPU stress to trigger HPA
-3. **Scale deployment** - trigger cluster autoscaler
-4. **Monitor scaling** - watch both pod and node scaling
-5. **Scale down** - demonstrate both scale-down behaviors
-6. **Explain benefits** - cost optimization, performance, reliability
+**5. Watch pods scale up (in another terminal):**
+```bash
+kubectl get pods -n microservices-platform -w
+# You should see new pods being created
+```
+
+**6. Verify scaling worked:**
+```bash
+kubectl get hpa -n microservices-platform
+# CPU should be high and REPLICAS should increase
+```
+

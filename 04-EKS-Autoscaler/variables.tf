@@ -1,29 +1,5 @@
-# Variables for EKS Autoscaler Layer
-
-# Remote State Configuration
-variable "foundation_state_bucket" {
-  description = "S3 bucket name where foundation state is stored"
-  type        = string
-  default     = "guru-terraform-state-awnexynj"
-}
-
-variable "foundation_state_key" {
-  description = "S3 key where foundation state is stored"
-  type        = string
-  default     = "terraform.tfstate"
-}
-
-variable "eks_state_bucket" {
-  description = "S3 bucket name where EKS state is stored"
-  type        = string
-  default     = "guru-terraform-state-awnexynj"
-}
-
-variable "eks_state_key" {
-  description = "S3 key where EKS state is stored"
-  type        = string
-  default     = "03-EKS/terraform.tfstate"
-}
+# Variables for the microservices platform
+# keeping it simple but professional
 
 variable "region" {
   description = "AWS region"
@@ -31,11 +7,22 @@ variable "region" {
   default     = "us-east-1"
 }
 
-# Project Configuration
 variable "project_name" {
-  description = "Name of the project"
+  description = "Project name"
   type        = string
-  default     = "ms-platform"
+  default     = "guru-ms-platform"
+}
+
+variable "app_replicas" {
+  description = "Initial number of app replicas"
+  type        = number
+  default     = 2
+}
+
+variable "max_replicas" {
+  description = "Maximum replicas for autoscaling"
+  type        = number
+  default     = 8  # Lower max for easier demo
 }
 
 variable "environment" {

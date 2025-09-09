@@ -1,61 +1,67 @@
-# EKS Cluster - Modular Layer
+# EKS - Kubernetes Cluster
 
-This directory contains Terraform configuration for creating an EKS cluster that consumes VPC infrastructure from the `01-VPC` layer via remote state. This is a modular approach that enables clean separation of concerns and resource reuse.
+Sets up a production-ready Kubernetes cluster on AWS. This is where the magic happens if you want to run containers.
 
-## Modular Architecture
+## What it creates
 
-This EKS layer follows a modular design pattern:
+- EKS cluster (managed Kubernetes control plane)
+- Worker nodes (EC2 instances that run your containers)
+- All the IAM roles and policies needed
+- Security groups for cluster communication
+- Node groups in private subnets (secure!)
 
-- **Consumes VPC via Remote State**: No duplicate networking resources
-- **Independent Lifecycle**: Can be destroyed/recreated without affecting VPC
-- **Shared Infrastructure**: VPC can support multiple services (RDS, ALB, etc.)
-- **Clean Dependencies**: Clear separation between networking and compute layers
+## Prerequisites
 
-### Remote State Pattern
+- `01-foundation` must be deployed first
+- AWS credentials configured
+- kubectl installed on your machine
 
-The module reads VPC outputs from the networking layer:
+## Deploy
 
-```hcl
-# vpc-data.tf
-data "terraform_remote_state" "vpc" {
-  backend = "s3"
-  config = {
-    bucket = "guru-terraform-state-awnexynj"
-    key    = "terraform.tfstate"
-    region = "us-east-1"
-  }
-}
-
-locals {
-  vpc_id             = data.terraform_remote_state.vpc.outputs.vpc_id
-  private_subnet_ids = data.terraform_remote_state.vpc.outputs.private_subnet_ids
-  public_subnet_ids  = data.terraform_remote_state.vpc.outputs.public_subnet_ids
-  nat_public_ips     = data.terraform_remote_state.vpc.outputs.nat_public_ips
-}
+```bash
+terraform init
+terraform plan
+terraform apply
 ```
 
-## Dependencies
+This takes about 10-15 minutes. EKS clusters are slow to create, grab a coffee.
 
-### Required Infrastructure (Deploy Order)
-1. **Remote State** (`00-S3 creation`) - S3 bucket and DynamoDB for state management
-2. **VPC Layer** (`01-VPC`) - Shared networking infrastructure
-3. **EKS Layer** (`02-EKS`) - This layer
+## Connect kubectl
 
-### Remote State Dependencies
-This module consumes the following from the VPC layer:
-- `vpc_id` - The VPC ID where EKS will be deployed
-- `private_subnet_ids` - Private subnets for EKS worker nodes
-- `public_subnet_ids` - Public subnets for load balancers  
-- `nat_public_ips` - NAT Gateway IPs for allowlisting
+After deployment:
 
-**State Location**: `s3://guru-terraform-state-awnexynj/03-EKS/terraform.tfstate`
+```bash
+aws eks update-kubeconfig --region us-east-1 --name simple-eks-cluster
+kubectl get nodes
+```
 
-## What This Layer Creates
+You should see your worker nodes listed.
 
-### EKS Cluster
-- **Managed EKS Cluster**: Kubernetes 1.33 in private subnets
-- **Managed Node Group**: 2-4 t3.medium instances with auto-scaling
-- **CloudWatch Logging**: Control plane logs (API, audit, authenticator)
+## What you get
+
+A fully functional Kubernetes cluster that can run containers. The worker nodes are in private subnets for security, but the cluster can still pull images from the internet via NAT gateway.
+
+## Validation
+
+```bash
+# Check cluster status
+kubectl get nodes
+
+# Check if system pods are running
+kubectl get pods -A
+
+# Deploy a test pod
+kubectl run test-pod --image=nginx --port=80
+kubectl get pods
+```
+
+## Clean up
+
+```bash
+terraform destroy
+```
+
+Warning: This also takes 10-15 minutes to destroy!
 - **Security Groups**: EKS-specific security rules
 
 ### IAM Resources
@@ -162,7 +168,7 @@ The EKS cluster leverages the shared VPC infrastructure:
 - **Single NAT Gateway**: Cost-optimized shared networking
 
 ### EKS Configuration
-- **Cluster**: ms-platform-eks
+- **Cluster**: guru-ms-platform-eks
 - **Version**: Kubernetes 1.33
 - **Node Group**: 2-4 t3.medium instances (ON_DEMAND)
 - **Networking**: Private subnets only for nodes, public for LoadBalancers
@@ -209,13 +215,13 @@ terraform console
 terraform plan | grep "data.terraform_remote_state.vpc"
 
 # Check state file location
-aws s3 ls s3://guru-terraform-state-awnexynj/03-EKS/
+aws s3 ls s3://guru-terraform-state-bucket/03-EKS/
 ```
 
 ### Debug Remote State
 ```bash
 # Check VPC state directly
-aws s3 cp s3://guru-terraform-state-awnexynj/terraform.tfstate - | jq '.outputs'
+aws s3 cp s3://guru-terraform-state-bucket/terraform.tfstate - | jq '.outputs'
 
 # Show current state references
 terraform show -json | jq '.values.root_module.resources[] | select(.type == "terraform_remote_state")'

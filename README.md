@@ -1,52 +1,67 @@
-# EKS Infrastructure with Autoscaling
+# Infrastructure as Code Project
 
-A Terraform-based AWS EKS infrastructure with horizontal pod autoscaling and cluster autoscaling capabilities.
+Simple AWS infrastructure setup using Terraform. Built this to demonstrate different patterns - from basic EC2 to full EKS with autoscaling.
 
-## Architecture
+## What's Inside
 
-```
-Internet → ALB (Public Subnets) → EKS Cluster (Private Subnets)
-```
+- **01-foundation/** - The basics: VPC, subnets, NAT gateway
+- **02-compute/** - Simple web server behind a load balancer (private subnet for security)
+- **03-EKS/** - Kubernetes cluster setup
+- **04-EKS-Autoscaler/** - EKS with horizontal pod autoscaling (the cool stuff!)
 
-- **Foundation Layer**: VPC, subnets, NAT gateway
-- **EKS Layer**: Kubernetes cluster with managed node groups
-- **Autoscaler Layer**: Cluster autoscaler, HPA, metrics server, ALB integration
+## How to Use
+
+Deploy in this order (each folder has its own README):
+
+1. `01-foundation/` - Sets up the network
+2. `02-compute/` OR `03-EKS/` - Pick your poison
+3. `04-EKS-Autoscaler/` - Only if you did EKS first
 
 ## Quick Start
 
-1. **Deploy Foundation**
-   ```bash
-   cd 01-foundation
-   terraform init
-   terraform apply
-   ```
+```bash
+# Set up AWS credentials first
+aws configure
 
-2. **Deploy EKS**
-   ```bash
-   cd 03-EKS
-   terraform init
-   terraform apply
-   ```
+# Then in each directory:
+terraform init
+terraform plan
+terraform apply
+```
 
-3. **Deploy Autoscaling**
-   ```bash
-   cd 04-EKS-Autoscaler
-   terraform init
-   terraform apply
-   ```
-
-4. **Configure kubectl**
+Built with ❤️ and lots of coffee ☕
    ```bash
    aws eks update-kubeconfig --region us-east-1 --name guru-eks-cluster
    ```
 
-## Demo Application
+## Accessing the platform
 
-Access the nginx demo app via the Application Load Balancer:
-- URL will be displayed in Terraform outputs after deployment
-- Example: `http://k8s-demoapp-xxxxx.us-east-1.elb.amazonaws.com`
+The frontend service should be available through the load balancer. Check terraform output for the URL.
 
-## Testing Autoscaling
+## Testing autoscaling
+
+1. Check current pods:
+   ```bash
+   kubectl get pods -n microservices-platform
+   ```
+
+2. Generate some load to test HPA:
+   ```bash
+   kubectl run -i --tty load-generator --rm --image=busybox --restart=Never -- /bin/sh
+   # Then run: while true; do wget -q -O- http://frontend-service.microservices-platform.svc.cluster.local; done
+   ```
+
+3. Watch HPA in action:
+   ```bash
+   kubectl get hpa -n microservices-platform --watch
+   ```
+
+## Notes
+
+- Frontend scales based on CPU (70%) and memory (80%) usage
+- API service scales more conservatively (75% CPU)  
+- Worker nodes can scale from 1 to 8 instances
+- Using simple LoadBalancer service (not ALB) to keep it basic
 
 - **Horizontal Pod Autoscaler**: Scales pods based on CPU/memory usage
 - **Cluster Autoscaler**: Adds/removes nodes based on pod scheduling needs

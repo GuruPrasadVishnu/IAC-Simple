@@ -1,4 +1,4 @@
-# Provider configurations for EKS Autoscaler
+# Provider setup for k8s stuff
 
 terraform {
   required_version = ">= 1.0.0"
@@ -12,25 +12,19 @@ terraform {
       source  = "hashicorp/kubernetes"
       version = "~> 2.23"
     }
-    helm = {
-      source  = "hashicorp/helm"
-      version = "~> 2.15"
-    }
   }
 
-  # Backend configuration for remote state
-  backend "s3" {
-    bucket         = "guru-terraform-state-awnexynj"  # TODO: Make this configurable
-    key            = "04-EKS-Autoscaler/terraform.tfstate"
-    region         = "us-east-1"                      # TODO: Make this configurable
-    dynamodb_table = "guru-terraform-locks"          # TODO: Make this configurable
-    encrypt        = true
-  }
+  # Using local backend for now - TODO: set up remote state later
+  # backend "s3" {
+  #   bucket = "my-terraform-state"
+  #   key    = "eks-demo/terraform.tfstate"
+  #   region = "us-east-1"
+  # }
 }
 
 # AWS Provider
 provider "aws" {
-  region = var.region
+  region = "us-east-1"  # hardcoded for now
 }
 
 # Kubernetes Provider

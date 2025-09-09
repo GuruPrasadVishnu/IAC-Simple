@@ -1,40 +1,33 @@
-# Node Group Configuration
+# Worker nodes configuration
 
-locals {
-  instance_types = ["t3.medium"]  # Using t3.medium to keep costs reasonable
-  capacity_type  = "ON_DEMAND"    # SPOT would be cheaper but less stable
-}
-
-# Node group - starting small and will scale up as needed
+# Node group for the EKS cluster
 resource "aws_eks_node_group" "main" {
   cluster_name    = aws_eks_cluster.main.name
-  node_group_name = "${local.cluster_name}-nodes"
-  node_role_arn   = aws_iam_role.eks_nodes.arn
-  subnet_ids      = local.private_subnet_ids
-  instance_types  = local.instance_types
-  capacity_type   = local.capacity_type
+  node_group_name = "${var.cluster_name}-nodes"
+  node_role_arn   = aws_iam_role.eks_workers.arn
+  subnet_ids      = data.terraform_remote_state.foundation.outputs.private_subnet_ids
+  instance_types  = [var.node_instance_type]
+  capacity_type   = "ON_DEMAND"
 
   scaling_config {
-    desired_size = var.desired_nodes
-    max_size     = var.max_nodes
-    min_size     = var.min_nodes
+    desired_size = 2
+    max_size     = 8   # increased for microservices workloads
+    min_size     = 1
   }
 
-  # This helps with graceful updates/destroys but makes CI/CD slower
   update_config {
     max_unavailable = 1
   }
 
-  # Let's not make modifying the launch template too easy
-  lifecycle {
-    ignore_changes = [launch_template]
-  }
-
   depends_on = [
-    aws_iam_role_policy_attachment.eks_worker_node_policy,
+    aws_iam_role_policy_attachment.eks_worker_policy,
     aws_iam_role_policy_attachment.eks_cni_policy,
-    aws_iam_role_policy_attachment.ecr_read_only,
+    aws_iam_role_policy_attachment.eks_registry_policy,
   ]
 
-  tags = local.common_tags
+  tags = {
+    Name = "guru-eks-nodes"
+    Environment = "dev"
+    Purpose = "microservices-platform"
+  }
 }

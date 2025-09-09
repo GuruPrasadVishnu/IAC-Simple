@@ -1,46 +1,43 @@
-# Configure providers for AWS and Kubernetes resources
+# Basic provider configuration
 
-# EKS Configuration
-locals {
-  # Use variables for flexible configuration
-  azs = var.availability_zones
-  # EKS cluster name
-  cluster_name = var.cluster_name
-  # Common tags for all resources
-  common_tags = {
-    Project     = var.project_name
-    Environment = var.environment
-    Owner       = var.owner
-    ManagedBy   = "terraform"
+terraform {
+  required_version = ">= 1.0"
+  
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
+
+  # Using remote state
+  backend "s3" {
+    bucket = "guru-terraform-state-bucket"
+    key    = "03-EKS/terraform.tfstate"
+    region = "us-east-1"
   }
 }
 
-# AWS Provider configuration
+# AWS Provider
 provider "aws" {
   region = var.region
 }
 
-# Get EKS cluster auth data for provider configuration
-data "aws_eks_cluster" "main" {
-  name = aws_eks_cluster.main.name
+# Get foundation state for VPC info
+data "terraform_remote_state" "foundation" {
+  backend = "s3"
+  config = {
+    bucket = "guru-terraform-state-bucket"
+    key    = "terraform.tfstate"
+    region = "us-east-1"
+  }
 }
 
-data "aws_eks_cluster_auth" "main" {
-  name = aws_eks_cluster.main.name
-}
-
-# Configure Kubernetes provider
-provider "kubernetes" {
-  host                   = data.aws_eks_cluster.main.endpoint
-  cluster_ca_certificate = base64decode(data.aws_eks_cluster.main.certificate_authority[0].data)
-  token                  = data.aws_eks_cluster_auth.main.token
-}
-
-# Configure Helm provider
-provider "helm" {
-  kubernetes {
-    host                   = data.aws_eks_cluster.main.endpoint
-    cluster_ca_certificate = base64decode(data.aws_eks_cluster.main.certificate_authority[0].data)
-    token                  = data.aws_eks_cluster_auth.main.token
+# Common locals
+locals {
+  common_tags = {
+    Project   = "guru-ms-platform"
+    Owner     = "guru"
+    ManagedBy = "terraform"
   }
 }

@@ -1,9 +1,9 @@
-# IAM Roles and Policies for EKS
-# TODO: Add more granular policies when we need them
+# Basic IAM roles for EKS
+# keeping it simple
 
-# Cluster role - keeping it simple for now
+# EKS cluster role
 resource "aws_iam_role" "eks_cluster" {
-  name = "${local.cluster_name}-role"
+  name = "guru-eks-cluster-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -16,10 +16,9 @@ resource "aws_iam_role" "eks_cluster" {
     }]
   })
 
-  tags = merge(local.common_tags, {
-    Name = "${local.cluster_name}-role"
-    TODO = "Break out IAM into separate file when we add more roles"
-  })
+  tags = {
+    Name = "guru-eks-cluster-role"
+  }
 }
 
 resource "aws_iam_role_policy_attachment" "eks_cluster_policy" {
@@ -27,21 +26,9 @@ resource "aws_iam_role_policy_attachment" "eks_cluster_policy" {
   role       = aws_iam_role.eks_cluster.name
 }
 
-# Add CloudWatch logging permissions - required for control plane logging
-resource "aws_iam_role_policy_attachment" "eks_cluster_cloudwatch_policy" {
-  policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
-  role       = aws_iam_role.eks_cluster.name
-}
-
-# Add the cluster service role policy
-resource "aws_iam_role_policy_attachment" "eks_cluster_service_policy" {
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSServicePolicy"
-  role       = aws_iam_role.eks_cluster.name
-}
-
-# Node group role and policies
-resource "aws_iam_role" "eks_nodes" {
-  name = "${local.cluster_name}-node-role"
+# Worker node role
+resource "aws_iam_role" "eks_workers" {
+  name = "guru-eks-worker-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -55,17 +42,18 @@ resource "aws_iam_role" "eks_nodes" {
   })
 }
 
-resource "aws_iam_role_policy_attachment" "eks_worker_node_policy" {
+# Worker node policies
+resource "aws_iam_role_policy_attachment" "eks_worker_policy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
-  role       = aws_iam_role.eks_nodes.name
+  role       = aws_iam_role.eks_workers.name
 }
 
 resource "aws_iam_role_policy_attachment" "eks_cni_policy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
-  role       = aws_iam_role.eks_nodes.name
+  role       = aws_iam_role.eks_workers.name
 }
 
-resource "aws_iam_role_policy_attachment" "ecr_read_only" {
+resource "aws_iam_role_policy_attachment" "eks_registry_policy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
-  role       = aws_iam_role.eks_nodes.name
+  role       = aws_iam_role.eks_workers.name
 }

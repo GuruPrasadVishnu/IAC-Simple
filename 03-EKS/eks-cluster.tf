@@ -1,12 +1,12 @@
-# Main EKS Cluster Configuration
+# EKS Cluster setup
 
-# Security group for cluster - restricting to 443 only
+# Basic security group for cluster
 resource "aws_security_group" "eks_cluster" {
-  name        = "${local.cluster_name}-cluster-sg"
-  description = "Security group for EKS cluster control plane"
-  vpc_id      = local.vpc_id
+  name        = "guru-eks-cluster-sg"
+  description = "Security group for EKS cluster"
+  vpc_id      = data.terraform_remote_state.foundation.outputs.vpc_id
 
-  # Outbound all
+  # Allow all outbound
   egress {
     from_port   = 0
     to_port     = 0
@@ -14,60 +14,39 @@ resource "aws_security_group" "eks_cluster" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  # Only 443 inbound for k8s API
+  # K8s API access
   ingress {
     from_port   = 443
     to_port     = 443
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]  # TODO: Lock this down to VPN/office IPs
+    cidr_blocks = ["0.0.0.0/0"]  # TODO: restrict this later
   }
 
-  tags = merge(local.common_tags, {
-    Name = "${local.cluster_name}-cluster-sg"
-  })
+  tags = {
+    Name = "guru-eks-cluster-sg"
+  }
 }
 
-# The actual EKS cluster
+# EKS cluster
 resource "aws_eks_cluster" "main" {
-  name     = local.cluster_name
-  version  = var.kubernetes_version
+  name     = var.cluster_name
+  version  = "1.30"  # hardcoded for now
   role_arn = aws_iam_role.eks_cluster.arn
-
-  enabled_cluster_log_types = [
-    "api",
-    "audit",
-    "authenticator"
-  ]
 
   vpc_config {
     security_group_ids = [aws_security_group.eks_cluster.id]
-    subnet_ids         = local.private_subnet_ids
+    subnet_ids         = data.terraform_remote_state.foundation.outputs.private_subnet_ids
     
-    # Keeping endpoint private for now - we can expose it later if needed
     endpoint_private_access = true
-    endpoint_public_access  = true  # TODO: Make this false once VPN is set up
+    endpoint_public_access  = true  # need this for kubectl access
   }
 
-  # Force proper IAM role/policy attachment before creating cluster
+  # Make sure IAM role is ready
   depends_on = [
-    aws_iam_role_policy_attachment.eks_cluster_policy,
-    aws_iam_role_policy_attachment.eks_cluster_cloudwatch_policy
+    aws_iam_role_policy_attachment.eks_cluster_policy
   ]
 
-  tags = local.common_tags
-}
-
-# OIDC Identity Provider for EKS
-data "tls_certificate" "eks" {
-  url = aws_eks_cluster.main.identity[0].oidc[0].issuer
-}
-
-resource "aws_iam_openid_connect_provider" "eks" {
-  client_id_list  = ["sts.amazonaws.com"]
-  thumbprint_list = [data.tls_certificate.eks.certificates[0].sha1_fingerprint]
-  url             = aws_eks_cluster.main.identity[0].oidc[0].issuer
-
-  tags = merge(local.common_tags, {
-    Name = "${local.cluster_name}-eks-irsa"
-  })
+  tags = {
+    Name = "guru-eks-cluster"
+  }
 }

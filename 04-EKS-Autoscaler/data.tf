@@ -1,52 +1,27 @@
-# Data sources to access remote state from other layers
+# Basic data sources 
+# hardcoding some stuff to keep it simple
 
-# Foundation layer - VPC, networking, S3 backend
-data "terraform_remote_state" "foundation" {
-  backend = "s3"
-  config = {
-    bucket = var.foundation_state_bucket
-    key    = var.foundation_state_key
-    region = var.region
-  }
-}
-
-# EKS layer - Kubernetes cluster
-data "terraform_remote_state" "eks" {
-  backend = "s3"
-  config = {
-    bucket = var.eks_state_bucket
-    key    = var.eks_state_key
-    region = var.region
-  }
-}
-
-# Get current AWS region
+# Get current region
 data "aws_region" "current" {}
 
-# Get current AWS caller identity
+# Get current account
 data "aws_caller_identity" "current" {}
 
-# EKS cluster data
+# EKS cluster info - hardcoded for now
 data "aws_eks_cluster" "cluster" {
-  name = data.terraform_remote_state.eks.outputs.cluster_name
+  name = "guru-eks-cluster"  # TODO: make this dynamic later
 }
 
 data "aws_eks_cluster_auth" "cluster" {
-  name = data.terraform_remote_state.eks.outputs.cluster_name
+  name = "guru-eks-cluster"
 }
 
-
 locals {
-  # EKS cluster information from remote state
-  cluster_name     = data.terraform_remote_state.eks.outputs.cluster_name
-  cluster_endpoint = data.terraform_remote_state.eks.outputs.cluster_endpoint
+  cluster_name = "guru-eks-cluster"
   
-  # Common tags
   common_tags = {
-    Project     = var.project_name
-    Environment = var.environment
-    Owner       = var.owner
-    ManagedBy   = "terraform"
-    Layer       = "autoscaler"
+    Project   = var.project_name
+    Owner     = "guru"
+    ManagedBy = "terraform"
   }
 }
