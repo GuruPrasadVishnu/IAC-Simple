@@ -38,16 +38,16 @@ Clean demonstration of Kubernetes horizontal pod autoscaling without complex dep
 2. **Test autoscaling**:
    ```bash
    # Watch the HPA in action
-   kubectl get hpa -n microservices-platform --watch
+   kubectl get hpa -n guru-microservices-platform --watch
    
    # Monitor pod scaling
-   kubectl get pods -n microservices-platform --watch
+   kubectl get pods -n guru-microservices-platform --watch
    ```
 
 3. **Generate load** (triggers autoscaling):
    ```bash
    # Use the included load tester
-   kubectl exec -it deploy/load-tester -n microservices-platform -- sh
+   kubectl exec -it deploy/load-tester -n guru-microservices-platform -- sh
    # Inside the pod: while true; do wget -q -O- http://frontend-service/; done
    ```
 
@@ -62,10 +62,10 @@ Clean demonstration of Kubernetes horizontal pod autoscaling without complex dep
 
 ```bash
 # Check frontend pods (should scale 1-10 based on load)
-kubectl get pods -l app=frontend -n microservices-platform
+kubectl get pods -l app=frontend -n guru-microservices-platform
 
 # View HPA status and scaling decisions
-kubectl describe hpa frontend-hpa -n microservices-platform
+kubectl describe hpa frontend-hpa -n guru-microservices-platform
 
 ## Cleanup
 

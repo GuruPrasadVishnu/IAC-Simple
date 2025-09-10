@@ -28,6 +28,6 @@ resource "aws_eks_node_group" "main" {
   tags = {
     Name = "guru-eks-nodes"
     Environment = "dev"
-    Purpose = "microservices-platform"
+    Purpose = "guru-microservices-platform"
   }
 }

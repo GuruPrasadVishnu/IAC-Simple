@@ -3,7 +3,7 @@
 
 resource "kubernetes_namespace" "microservices" {
   metadata {
-    name = "microservices-platform"
+    name = "guru-microservices-platform"
   }
 }
 
@@ -11,7 +11,7 @@ resource "kubernetes_namespace" "microservices" {
 resource "kubernetes_config_map" "frontend_html" {
   metadata {
     name      = "frontend-html"
-    namespace = "microservices-platform"
+    namespace = "guru-microservices-platform"
   }
 
   data = {
@@ -36,15 +36,15 @@ resource "kubernetes_config_map" "frontend_html" {
     <p>This platform demonstrates frontend autoscaling with real database workload.</p>
     <p>To see scaling in action:</p>
     <ol>
-        <li>Run: kubectl get pods -n microservices-platform</li>
-        <li>Watch: kubectl get hpa -n microservices-platform --watch</li>
+        <li>Run: kubectl get pods -n guru-microservices-platform</li>
+        <li>Watch: kubectl get hpa -n guru-microservices-platform --watch</li>
         <li>Generate load on frontend pods (see load tester below)</li>
         <li>Watch frontend pods scale automatically based on CPU usage</li>
     </ol>
     
     <h2>Database Load Testing</h2>
     <p>Database service pods continuously run PostgreSQL benchmarks:</p>
-    <pre>kubectl logs -l app=db -n microservices-platform</pre>
+    <pre>kubectl logs -l app=db -n guru-microservices-platform</pre>
     
     <p>This site is publicly accessible via AWS LoadBalancer</p>
 </body>
@@ -57,7 +57,7 @@ EOF
 resource "kubernetes_deployment" "frontend" {
   metadata {
     name      = "frontend-service"
-    namespace = "microservices-platform"
+    namespace = "guru-microservices-platform"
     labels = {
       app  = "frontend"
       tier = "web"
@@ -124,7 +124,7 @@ resource "kubernetes_deployment" "frontend" {
 resource "kubernetes_deployment" "db_service" {
   metadata {
     name      = "db-service"
-    namespace = "microservices-platform"
+    namespace = "guru-microservices-platform"
     labels = {
       app  = "db"
       tier = "database"
@@ -179,7 +179,7 @@ resource "kubernetes_deployment" "db_service" {
 resource "kubernetes_service" "frontend" {
   metadata {
     name      = "frontend-service"
-    namespace = "microservices-platform"
+    namespace = "guru-microservices-platform"
   }
 
   spec {
@@ -200,7 +200,7 @@ resource "kubernetes_service" "frontend" {
 resource "kubernetes_service" "db_service" {
   metadata {
     name      = "db-service"
-    namespace = "microservices-platform"
+    namespace = "guru-microservices-platform"
   }
 
   spec {
@@ -221,7 +221,7 @@ resource "kubernetes_service" "db_service" {
 resource "kubernetes_horizontal_pod_autoscaler_v2" "frontend_hpa" {
   metadata {
     name      = "frontend-hpa"
-    namespace = "microservices-platform"
+    namespace = "guru-microservices-platform"
   }
 
   spec {
@@ -265,7 +265,7 @@ resource "kubernetes_deployment" "load_tester" {
   
   metadata {
     name      = "load-tester"
-    namespace = "microservices-platform"
+    namespace = "guru-microservices-platform"
   }
 
   spec {

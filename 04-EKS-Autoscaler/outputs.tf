@@ -12,7 +12,7 @@ output "kubeconfig_command" {
 
 output "namespace" {
   description = "Microservices namespace"
-  value       = "microservices-platform"
+  value       = "guru-microservices-platform"
 }
 
 output "frontend_service" {
