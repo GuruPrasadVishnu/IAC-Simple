@@ -7,7 +7,6 @@ This document provides a comprehensive overview of the infrastructure architectu
 ## Architecture Overview
 
 ![AWS EKS Microservices Architecture](docs/images/aws-architecture.png)
-
 *Figure 1: Complete AWS EKS Microservices Platform Architecture*
 
 ### Module Flow
